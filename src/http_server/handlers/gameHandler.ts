@@ -1,11 +1,20 @@
 import { addShipsToGame, startGame } from '../utils/db';
+import WebSocket from 'ws';
 
-function handleGameMessage(ws, data, id) {
+interface MessageData {
+  gameId: string;
+  ships: any[];
+  indexPlayer: string;
+}
+
+function handleGameMessage(ws: WebSocket, data: MessageData, id: number): void {
   const { gameId, ships, indexPlayer } = data;
   addShipsToGame(gameId, indexPlayer, ships);
-//   if (/* Check if game can start */) {
-//     startGame(gameId);
-//   }
+
+  // Uncomment and modify the condition to check if the game can start
+  // if (/* Check if game can start */) {
+  //   startGame(gameId);
+  // }
 }
 
 export { handleGameMessage };

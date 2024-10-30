@@ -38,6 +38,10 @@ interface Player {
       games[gameId][indexPlayer] = ships;
     }
 }
+
+export function getRooms(): Room[] {
+  return Object.values(rooms);
+}
   
   export function startGame(gameId: string): void {
     const game = games[gameId];

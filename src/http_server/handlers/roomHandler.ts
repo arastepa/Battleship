@@ -1,12 +1,19 @@
 import { createRoom, getRooms } from '../utils/db';
+import WebSocket from 'ws';
 
-function handleRoomMessage(ws, data, id) {
+
+interface MessageData {
+  [key: string]: any;
+}
+
+function handleRoomMessage(ws: WebSocket, data: MessageData, id: number): void {
   const room = createRoom();
-  ws.send(JSON.stringify({
+  const response: { type: string; data: any; id: number } = {
     type: 'update_room',
     data: getRooms(),
-    id
-  }));
+    id,
+  };
+  ws.send(JSON.stringify(response));
 }
 
 export { handleRoomMessage };
