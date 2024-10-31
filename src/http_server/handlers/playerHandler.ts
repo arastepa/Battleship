@@ -14,16 +14,16 @@ interface ResponseData {
 }
 
 function handlePlayerMessage(ws: WebSocket, data: MessageData, id: number): void {
-  const { name, password } = data;
+  const { name, password } = JSON.parse(data.toString());
   const player = addPlayer(name, password);
-  
-  const response: { type: string; data: ResponseData; id: number } = {
-    type: 'reg',
-    data: { name, index: player.index, error: false, errorText: '' },
-    id
-  };
-
-  ws.send(JSON.stringify(response));
+  ws.send(
+    JSON.stringify(
+    {
+      type: 'reg',
+      data: JSON.stringify({ name, index: player.index, error: false, errorText: '' }),
+      id
+    })
+  );
 }
 
 export { handlePlayerMessage };
