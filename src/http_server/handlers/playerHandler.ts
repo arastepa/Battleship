@@ -1,5 +1,7 @@
 import { addPlayer } from '../utils/db';
 import WebSocket from 'ws';
+import { connectedUsers } from '../server';
+
 
 interface MessageData {
   name: string;
@@ -13,9 +15,10 @@ interface ResponseData {
   errorText: string;
 }
 
-function handlePlayerMessage(ws: WebSocket, data: MessageData, id: number): void {
+function handlePlayerMessage(ws: WebSocket, data: MessageData, id: number, currentIndex: number): void {
   const { name, password } = JSON.parse(data.toString());
   const player = addPlayer(name, password);
+  connectedUsers[currentIndex] = { ws, name };
   ws.send(
     JSON.stringify(
     {
