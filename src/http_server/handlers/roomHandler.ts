@@ -41,10 +41,11 @@ function handleRoomMessage(ws: WebSocket, data: RoomData, id: number, currentInd
     const players = getPlayers();
     const player = players[name];
     const room = addPlayerToRoom(roomId, player);
-    
-    if (room) {
+    console.log("room:", room);
+    if (room?.players.length === 2) {
       room.players.forEach((player) => {
-        ws.send(JSON.stringify({
+      const {ws: wss} = connectedUsers[player.currentIndex];
+        wss.send(JSON.stringify({
           type: 'create_game',
           data: JSON.stringify({
             idGame: roomId,
@@ -65,7 +66,7 @@ function sendRoomUpdate(ws: WebSocket, id: number): void {
   ws.send(JSON.stringify({type: 'update_room',
     data: JSON.stringify(availableRooms.map((room) => ({
       roomId: room.roomId,
-      roomUsers: room.players.map((p) => ({ name: p.index, index: p.index })),
+      roomUsers: room.players.map((p) => ({ name: p.name, index: p.index })),
     }))),
     id}));
 }

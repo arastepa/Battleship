@@ -17,7 +17,7 @@ interface ResponseData {
 
 function handlePlayerMessage(ws: WebSocket, data: MessageData, id: number, currentIndex: number): void {
   const { name, password } = JSON.parse(data.toString());
-  const player = addPlayer(name, password);
+  const player = addPlayer(name, password, currentIndex);
   connectedUsers[currentIndex] = { ws, name };
   ws.send(
     JSON.stringify(

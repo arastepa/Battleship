@@ -3,6 +3,8 @@ import WebSocket from 'ws';
 interface Player {
   password: string;
   index: string;
+  name: string;
+  currentIndex: number;
 }
 
 interface Room {
@@ -20,9 +22,9 @@ const rooms: Record<string, Room> = {};
 const games: Record<string, Game> = {};
 
 // Function to add a player
-export function addPlayer(name: string, password: string): Player {
+export function addPlayer(name: string, password: string, currentIndex:number): Player {
   const index = Math.random().toString(36).substring(7);
-  players[name] = { password, index };
+  players[name] = { password, index, name, currentIndex };
   return players[name];
 }
 
@@ -42,7 +44,8 @@ export function createRoom(): Room {
 export function addPlayerToRoom(roomId: string, player: Player): Room | null {
   const room = rooms[roomId];
   if (room && room.players.length < 2) {
-    room.players.push(player);
+    if (room.players.length === 0 || (room.players.length == 1 && player.name !== room.players[0].name))
+      room.players.push(player);
     return room;
   }
   return null;
