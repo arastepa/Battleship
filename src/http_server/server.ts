@@ -1,7 +1,7 @@
 import {WebSocketServer} from 'ws';
 import { handlePlayerMessage } from './handlers/playerHandler';
 import { handleRoomMessage } from './handlers/roomHandler';
-// import { handleGameMessage } from './handlers/gameHandler';
+import { handleGameMessage } from './handlers/gameHandler';
 import WebSocket from 'ws';
 
 export const connectedUsers: Record<string, { ws: WebSocket; name: string }> = {};
@@ -23,9 +23,9 @@ export function startWs() {
         case 'add_user_to_room':
           handleRoomMessage(ws, data, id, currentIndex);
           break;
-        // case 'add_ships':
-        //     handleGameMessage(ws, data, id);
-        //     break;
+        case 'add_ships':
+            handleGameMessage(ws, data, id);
+            break;
           // More cases as required
         }
       });

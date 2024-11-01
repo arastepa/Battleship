@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { createRoom, addPlayerToRoom, getAvailableRooms, getPlayers } from '../utils/db'; // Utility functions for managing rooms
+import { createRoom, addPlayerToRoom, getAvailableRooms, getPlayers, createGame } from '../utils/db'; // Utility functions for managing rooms
 import { connectedUsers } from '../server';
 
 interface RoomData {
@@ -42,13 +42,15 @@ function handleRoomMessage(ws: WebSocket, data: RoomData, id: number, currentInd
     const player = players[name];
     const room = addPlayerToRoom(roomId, player);
     console.log("room:", room);
+    const game = createGame(roomId);
     if (room?.players.length === 2) {
+      console.log("FFF");
       room.players.forEach((player) => {
       const {ws: wss} = connectedUsers[player.currentIndex];
         wss.send(JSON.stringify({
           type: 'create_game',
           data: JSON.stringify({
-            idGame: roomId,
+            idGame: game.gameId,
             idPlayer: player.index,
           }),
           id
