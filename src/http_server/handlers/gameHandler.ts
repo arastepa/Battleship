@@ -68,20 +68,6 @@ export function handleGameMessage(ws: wsWithIdx, data: string, id: number): void
   }
 }
 
-
-function checkAllShipsDestroyed(player: any): boolean {
-  // Check if all ships of the player are destroyed
-  return false; // Placeholder, implement real logic
-}
-
-function notifyTurn(ws: WebSocket, game: Game, id: number) {
-  ws.send(JSON.stringify({
-    type: 'turn',
-    data: JSON.stringify({ currentPlayer: game.currentPlayerIndex }),
-    id,
-  }));
-}
-
 export function handleAttack(ws: wsWithIdx, data: string, id: number) {
   const { gameId, x, y, indexPlayer } = JSON.parse(data);
   console.log("ccc:",gameId, x, y,indexPlayer);
@@ -89,32 +75,10 @@ export function handleAttack(ws: wsWithIdx, data: string, id: number) {
   if (!game) return;
 
   const opponent = Object.keys(game.players).find((idx) => idx !== indexPlayer);
-  if (opponent)
+  const attacker = Object.keys(game.players).find((idx) => idx === indexPlayer);
+  if (opponent && attacker)
   {
-    const result = performAttack(ws,gameId, opponent, {x, y});
-
-    // Send attack feedback
-    ws.send(JSON.stringify({
-      type: 'attack',
-      data: JSON.stringify({
-        position: { x, y },
-        currentPlayer: indexPlayer,
-        status: result,
-      }),
-      id,
-    }));
-
-    if (checkAllShipsDestroyed(opponent)) {
-      // Game over
-      ws.send(JSON.stringify({
-        type: 'finish',
-        data: JSON.stringify({ winPlayer: indexPlayer }),
-        id,
-      }));
-    } else {
-      // Notify turn switch
-      notifyTurn(ws, game, id);
-    }
+    performAttack(ws,gameId, indexPlayer, {x, y}, id);
   }
 }
 

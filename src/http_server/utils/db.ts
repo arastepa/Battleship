@@ -69,7 +69,22 @@ export function createRoom(): Room {
   return newRoom;
 }
 
-export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, targetPosition: {x: number; y: number}) {
+function notifyTurn(ws: wsWithIdx, game: Game, id: number) {
+  const room = Object.values(rooms).find(el => el.roomId === game.roomId);
+  if (room)
+  {
+    room.players.forEach(el => {
+      el.ws.send(JSON.stringify({
+        type: 'turn',
+        data: JSON.stringify({ currentPlayer: game.currentPlayerIndex }),
+        id,
+      }));
+    }
+    )
+  }
+}
+
+export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, targetPosition: {x: number; y: number}, id: number) {
   const room = rooms[games[gameId].roomId];
   if (!room) {
     ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
@@ -83,10 +98,12 @@ export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, 
     return;
   }
 
-  const {name: currentTurn} = players[ws.id];
+  const currentId =  games[gameId].currentPlayerIndex;
+  console.log("turn:", currentId);
+  console.log("attacker:", attackerId);
   // Check if it's the attacker's turn
-  if (currentTurn !== attacker.name) {
-    ws.send(JSON.stringify({ type: 'error', message: 'Not your turn' }));
+  if (currentId !== attacker.index) {
+    room.players.forEach(el => el.ws.send(JSON.stringify({ type: 'error', message: 'Not your turn' })));
     return;
   }
 
@@ -114,27 +131,34 @@ export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, 
     const isShipSunk = hits.get(defender.index)?.length === hitShip.length;
     isSunk[defender.index] = isShipSunk
     // Notify players of the hit or sink result
-    ws.send(JSON.stringify({
-      type: 'attack_result',
+    room.players.forEach(el => el.ws.send(JSON.stringify({
+      type: 'attack',
       result: 'hit',
       position: targetPosition,
+      currentPlayer: attackerId,
       message: isShipSunk ? 'Ship sunk!' : 'Hit!',
-    }));
+    })));
 
     // End the game if all ships are sunk
-    const allShipsSunk = Object.values(isSunk[defender.index]).every(el => el === true);
+    const allShipsSunk = defenderShips.every((el, i) => isSunk[i] === true);
     if (allShipsSunk) {
-      ws.send(JSON.stringify({ type: 'game_over', winner: attackerId }));
+      room.players.forEach(el => ws.send(JSON.stringify({ type: 'finish', winner: attackerId })));
       return;
     }
   } else {
+    console.log("byyy");
     // Missed attack
-    ws.send(JSON.stringify({
-      type: 'attack_result',
+    room.players.forEach(el => ws.send(JSON.stringify({
+      type: 'attack',
       result: 'miss',
       position: targetPosition,
+      currentPlayer: attackerId,
       message: 'Miss!',
-    }));
+    })));
+
+    const current = games[gameId].currentPlayerIndex;
+      games[gameId].currentPlayerIndex = current === defender.index ? attacker.index : defender.index;
+      notifyTurn(ws, games[gameId], id);
   }
 
   // Change turn to the other player
