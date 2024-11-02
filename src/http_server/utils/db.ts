@@ -1,11 +1,19 @@
 import WebSocket from 'ws';
 import { connectedUsers } from '../server';
+import { wsWithIdx } from '../types/types';
 
 interface Player {
   password: string;
   index: string;
   name: string;
-  currentIndex: number;
+  ws: wsWithIdx;
+  attacks: {
+    position: {
+      x: number;
+      y: number;
+    }
+    // result: string;
+  }[]
 }
 
 interface Room {
@@ -18,10 +26,12 @@ interface Ship {
   direction: boolean;
   length: number;
   type: "small" | "medium" | "large" | "huge";
+  // hits: {x: number; y: number}[]
 }
 
 interface Game {
   gameId: string;
+  roomId: string;
   players: {
     [playerIndex: string]: {
       ships: Ship[];
@@ -31,15 +41,20 @@ interface Game {
   currentPlayerIndex: string | null;
 }
 
+
+
 const players: Record<string, Player> = {};
 const rooms: Record<string, Room> = {};
 const games: Record<string, Game> = {};
+const hits: Map<string, { x: number; y: number }[]> = new Map();
+const isSunk: Record<string, boolean> = {};
+
 
 // Function to add a player
-export function addPlayer(name: string, password: string, currentIndex:number): Player {
+export function addPlayer(name: string, password: string, ws: wsWithIdx): Player {
   const index = Math.random().toString(36).substring(7);
-  players[name] = { password, index, name, currentIndex };
-  return players[name];
+  players[index] = { password, index, name, ws, attacks: []};
+  return players[index];
 }
 
 export function getPlayers() {
@@ -52,6 +67,78 @@ export function createRoom(): Room {
   const newRoom: Room = { players: [], roomId };
   rooms[roomId] = newRoom;
   return newRoom;
+}
+
+export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, targetPosition: {x: number; y: number}) {
+  const room = rooms[games[gameId].roomId];
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  const attacker = room.players.find(el => el.index === attackerId);
+  const defender = room.players.find(el => el.index !== attackerId);
+  if (!attacker || !defender) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Players not found' }));
+    return;
+  }
+
+  const {name: currentTurn} = players[ws.id];
+  // Check if it's the attacker's turn
+  if (currentTurn !== attacker.name) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not your turn' }));
+    return;
+  }
+
+  // Check if the target position has already been attacked
+  if (attacker.attacks.some(el => el.position.x === targetPosition.x && el.position.y === targetPosition.y)) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Position already attacked' }));
+    return;
+  }
+
+  // Record the attack in the attacker's history
+  attacker.attacks.push({position: targetPosition});
+
+  // Check if the target position hits a ship
+  const defenderShips = games[gameId].players[defender.index].ships;
+  const hitShip = defenderShips.find(ship => 
+    ship.position.x === targetPosition.x && ship.position.y === targetPosition.y)
+
+  if (hitShip) {
+    // Mark the hit position on the ship
+    if (!hits.has(defender.index))
+      hits.set(defender.index, []);
+    hits.get(defender.index)!.push(targetPosition);
+
+    // Check if the ship is fully destroyed
+    const isShipSunk = hits.get(defender.index)?.length === hitShip.length;
+    isSunk[defender.index] = isShipSunk
+    // Notify players of the hit or sink result
+    ws.send(JSON.stringify({
+      type: 'attack_result',
+      result: 'hit',
+      position: targetPosition,
+      message: isShipSunk ? 'Ship sunk!' : 'Hit!',
+    }));
+
+    // End the game if all ships are sunk
+    const allShipsSunk = Object.values(isSunk[defender.index]).every(el => el === true);
+    if (allShipsSunk) {
+      ws.send(JSON.stringify({ type: 'game_over', winner: attackerId }));
+      return;
+    }
+  } else {
+    // Missed attack
+    ws.send(JSON.stringify({
+      type: 'attack_result',
+      result: 'miss',
+      position: targetPosition,
+      message: 'Miss!',
+    }));
+  }
+
+  // Change turn to the other player
+  // room.currentTurn = defenderId;
 }
 
 // Function to add a player to a room by roomId
@@ -82,6 +169,7 @@ export function createGame(roomId: string): Game {
     gameId,
     players: {},
     currentPlayerIndex: null,
+    roomId: roomId
   };
 
   room.players.forEach(player => {
@@ -125,7 +213,7 @@ export function startGame(gameId: string): void {
     const player = Object.values(players).find(el => el.index === index);
     console.log("player:", player);
     if (player) {
-     connectedUsers[player.currentIndex].ws.send(JSON.stringify({
+        player.ws.send(JSON.stringify({
         type: "start_game",
         data: JSON.stringify({
           ships: game.players[index].ships,

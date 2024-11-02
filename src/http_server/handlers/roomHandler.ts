@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { createRoom, addPlayerToRoom, getAvailableRooms, getPlayers, createGame } from '../utils/db'; // Utility functions for managing rooms
 import { connectedUsers } from '../server';
+import { wsWithIdx } from '../types/types';
 
 interface RoomData {
   indexRoom?: string;
@@ -24,29 +25,27 @@ interface UpdateRoomResponse {
   id: number;
 }
 
-function handleRoomMessage(ws: WebSocket, data: RoomData, id: number, currentIndex: number): void {
+function handleRoomMessage(ws: wsWithIdx, data: RoomData, id: number): void {
   if (data)
   {
     data = JSON.parse(data.toString());
   }
  if (!data.indexRoom) {
     const newRoom = createRoom(); // Create a new room with unique roomId
-    const {name} = connectedUsers[currentIndex];
     const players = getPlayers();
-    addPlayerToRoom(newRoom.roomId, players[name]); // Add the player to the new room
+    addPlayerToRoom(newRoom.roomId, players[ws.id]); // Add the player to the new room
     sendRoomUpdate(ws, id);
   } else {
     const roomId = data.indexRoom;
-    const {name} = connectedUsers[currentIndex];
     const players = getPlayers();
-    const player = players[name];
+    const player = players[ws.id];
     const room = addPlayerToRoom(roomId, player);
     console.log("room:", room);
     const game = createGame(roomId);
     if (room?.players.length === 2) {
       console.log("FFF");
       room.players.forEach((player) => {
-      const {ws: wss} = connectedUsers[player.currentIndex];
+      const wss = player.ws;
         wss.send(JSON.stringify({
           type: 'create_game',
           data: JSON.stringify({
