@@ -4,6 +4,7 @@ import { handleRoomMessage } from './handlers/roomHandler';
 import { handleAttack, handleGameMessage } from './handlers/gameHandler';
 import WebSocket from 'ws';
 import { wsWithIdx } from './types/types';
+import { handleRandomAttack } from './utils/db';
 
 export const connectedUsers: Record<string, { ws: WebSocket; name: string }> = {};
 export function startWs() {
@@ -29,9 +30,9 @@ export function startWs() {
         case 'attack':
             handleAttack(ws, data, id);
             break;
-        // case 'randomAttack':
-        //     handleRandomAttack(ws, data, id);
-        //     break;
+        case 'randomAttack':
+            handleRandomAttack(ws, data, id);
+            break;
         }
       });
     ws.on('close', () => {

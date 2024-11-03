@@ -253,4 +253,25 @@ export function getGameById(gameId: string): Game | undefined {
   return games[gameId];
 }
 
+export function handleRandomAttack(ws: wsWithIdx, data: string, id: number) {
+  const { gameId, indexPlayer } = JSON.parse(data);
+  const game = getGameById(gameId);
+
+  if (!game) return;
+
+  const opponent = Object.keys(game.players).find((idx) => idx !== indexPlayer);
+  if (!opponent) {
+    ws.send(JSON.stringify({ type: 'error', message: 'No opponent found' }));
+    return;
+  }
+
+  // Randomly select x and y coordinates
+  const x = Math.floor(Math.random() * 10); // assuming grid size of 10x10
+  const y = Math.floor(Math.random() * 10);
+
+  console.log(`Random attack at (${x}, ${y}) by player ${indexPlayer}`);
+
+  // Perform the attack at the selected position
+  performAttack(ws, gameId, indexPlayer, { x, y }, id);
+}
 
