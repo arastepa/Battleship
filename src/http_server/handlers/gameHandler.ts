@@ -43,7 +43,6 @@ export function handleGameMessage(ws: wsWithIdx, data: string, id: number): void
 
     addShipsToGame(gameId, indexPlayer, ships);
 
-    // Acknowledge ship submission
     ws.send(JSON.stringify({
       type: "add_ships_ack",
       data: JSON.stringify({
@@ -52,7 +51,6 @@ export function handleGameMessage(ws: wsWithIdx, data: string, id: number): void
       id,
     }));
 
-    // Check if both players have submitted their ships
     if (isGameReady(gameId)) {
       console.log("SSSS");
       startGame(gameId);

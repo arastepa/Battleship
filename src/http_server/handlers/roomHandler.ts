@@ -31,9 +31,9 @@ function handleRoomMessage(ws: wsWithIdx, data: RoomData, id: number): void {
     data = JSON.parse(data.toString());
   }
  if (!data.indexRoom) {
-    const newRoom = createRoom(); // Create a new room with unique roomId
+    const newRoom = createRoom();
     const players = getPlayers();
-    addPlayerToRoom(newRoom.roomId, players[ws.id]); // Add the player to the new room
+    addPlayerToRoom(newRoom.roomId, players[ws.id]);
     sendRoomUpdate(ws, id);
   } else {
     const roomId = data.indexRoom;

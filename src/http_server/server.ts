@@ -26,7 +26,6 @@ export function startWs() {
         case 'add_ships':
             handleGameMessage(ws, data, id);
             break;
-          // More cases as required
         case 'attack':
             handleAttack(ws, data, id);
             break;
