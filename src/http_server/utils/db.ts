@@ -44,9 +44,12 @@ interface Game {
 const players: Record<string, Player> = {};
 const rooms: Record<string, Room> = {};
 const games: Record<string, Game> = {};
-const hits: Map<string, { x: number; y: number }[]> = new Map();
-const isSunk: Record<string, boolean> = {};
-
+const hits: Map<{ x: number; y: number }, number> = new Map();
+const isSunk: Map<{ x: number; y: number }, boolean> = new Map();
+const shipCells: {
+  x: number,
+  y: number
+}[] = [];
 
 export function addPlayer(name: string, password: string, ws: wsWithIdx): Player {
   const index = Math.random().toString(36).substring(7);
@@ -110,37 +113,68 @@ export function performAttack(ws:wsWithIdx, gameId: string, attackerId: string, 
   attacker.attacks.push({position: targetPosition});
 
   const defenderShips = games[gameId].players[defender.index].ships;
-  const hitShip = defenderShips.find(ship => 
-    ship.position.x === targetPosition.x && ship.position.y === targetPosition.y)
-
+  const hitShip = defenderShips.find(ship =>  
+    (ship.direction === false ? (targetPosition.x >= ship.position.x && targetPosition.x < (ship.position.x + ship.length) && ship.position.y === targetPosition.y):(targetPosition.y >= ship.position.y && targetPosition.y < (ship.position.y + ship.length)) && ship.position.x === targetPosition.x))
+  console.log("hit:", hitShip);
   if (hitShip) {
-    if (!hits.has(defender.index))
-      hits.set(defender.index, []);
-    hits.get(defender.index)!.push(targetPosition);
+    if (!hits.has(hitShip.position))
+      hits.set(hitShip.position, 1);
+    else {
+      hits.set(hitShip.position, hits.get(hitShip.position)! + 1);
+    }
+    console.log("lnn:", hits.get(hitShip.position));
+    const isShipSunk = hits.get(hitShip.position) === hitShip.length;
+    
+    for (let i = 0; i < hitShip.length; i++) {
+      const x = hitShip.direction ? hitShip.position.x : hitShip.position.x + i;
+      const y = hitShip.direction ? hitShip.position.y + i : hitShip.position.y;
+      shipCells.push({ x, y });
+    }
 
-    const isShipSunk = hits.get(defender.index)?.length === hitShip.length;
-    isSunk[defender.index] = isShipSunk;
-    room.players.forEach(el => el.ws.send(JSON.stringify({
-      type: 'attack',
-      result: 'hit',
-      position: targetPosition,
-      currentPlayer: attackerId,
-      message: isShipSunk ? 'Ship sunk!' : 'Hit!',
-    })));
+    if (isShipSunk)
+    {
+      if (!isSunk.has(hitShip.position))
+        isSunk.set(hitShip.position, true);
 
-    const allShipsSunk = defenderShips.every((el, i) => isSunk[i] === true);
+      shipCells.forEach(cell => {
+        room.players.forEach(el => el.ws.send(JSON.stringify({
+          type: 'attack',
+          data: JSON.stringify({
+            position: cell,
+            currentPlayer: attackerId,
+            status: 'killed'
+          }),
+          id: 0
+        })));
+      })
+    }
+    else {
+      room.players.forEach(el => el.ws.send(JSON.stringify({
+        type: 'attack',
+        data: JSON.stringify({
+          position: targetPosition,
+          currentPlayer: attackerId,
+          status: 'shot',
+        }),
+        id: 0
+      })));
+    }
+
+    const allShipsSunk = defenderShips.every((el, i) => isSunk.get(el.position) === true);
     if (allShipsSunk) {
-      room.players.forEach(el => ws.send(JSON.stringify({ type: 'finish', winner: attackerId })));
+      room.players.forEach(el => ws.send(JSON.stringify({ type: 'finish', data: JSON.stringify({winPlayer: attackerId}) })));
       return;
     }
   } else {
     console.log("byyy");
     room.players.forEach(el => ws.send(JSON.stringify({
       type: 'attack',
-      result: 'miss',
-      position: targetPosition,
-      currentPlayer: attackerId,
-      message: 'Miss!',
+      data: JSON.stringify({
+        position: targetPosition,
+        currentPlayer: attackerId,
+        status: 'miss',
+      }),
+      id: 0,
     })));
 
     const current = games[gameId].currentPlayerIndex;
@@ -194,7 +228,7 @@ export function addShipsToGame(gameId: string, playerIndex: string, ships: Ship[
     game.players[playerIndex].ships = ships;
     game.players[playerIndex].hasSubmitted = true;
   }
-  console.log(game);
+  console.log("ships:", game.players[playerIndex].ships);
 }
 
 export function isGameReady(gameId: string): boolean {
